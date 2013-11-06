@@ -9,5 +9,5 @@ type PostProcessor interface {
 }
 
 func main() {
-    plugin.ServePostProcessor(new(vagrant.PostProcessor))
+    plugin.ServePostProcessor(new(virtualbox.PostProcessor))
 }
