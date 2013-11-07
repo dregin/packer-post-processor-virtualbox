@@ -1,6 +1,6 @@
 // https://gist.github.com/jedy/3357393
 // https://blogs.oracle.com/janp/entry/how_the_scp_protocol_works
-package main
+package virtualbox
 
 import (
 	"code.google.com/p/go.crypto/ssh"

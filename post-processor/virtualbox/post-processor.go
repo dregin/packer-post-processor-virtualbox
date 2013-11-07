@@ -26,7 +26,7 @@ type PostProcessor struct {
 
 func (p *PostProcessor) Configure(raws ...interface{}) error {
 	_, err := common.DecodeConfig(&p.config, raws...)
-	if err != nill {
+	if err != nil {
 		return err
 	}
 
@@ -38,7 +38,15 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 
 // Send the OVF file (The artifact) to the virtual box host.
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
+	ppName, ok := "virtualbox"
+	if !ok {
+		return nil, false, fmt.Errorf("Unknown artifact type, can't build box: %s", artifact.BuilderId())
+	}
 
+	// Use the premade PostProcessor if we have one. Otherwise, we
+	// create it and configure it here.
+	pp, ok := p.premade[ppName]
+	return pp.PostProcess(ui, artifact)
 }
 
 func (p *PostProcessor) subPostProcessor(key string, specific interface{}, extra map[string]interface{}) (packer.PostProcessor, error) {

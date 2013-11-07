@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/mitchellh/packer/plugin"
+	"github.com/dregin/packer-post-processor-virtualbox/post-processor/virtualbox"
+	"github.com/mitchellh/packer/packer/plugin"
 )
 
 // Assume this implements packer.Builder
