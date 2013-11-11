@@ -50,19 +50,28 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 }
 
 func (p *PostProcessor) subPostProcessor(key string, specific interface{}, extra map[string]interface{}) (packer.PostProcessor, error) {
+	pp := keyToPostProcessor(key)
+	if pp == nil {
+		return nil, nil
+	}
 
+	if err := pp.Configure(extra, specific); err != nil {
+		return nil, err
+	}
+
+	return pp, nil
 }
 
 // keyToPostProcessor maps a configuration key to the actual post-processor
 // it will be configuring. This returns a new instance of that post-processor.
 func keyToPostProcessor(key string) packer.PostProcessor {
 	switch key {
-	case "aws":
-		return new(AWSBoxPostProcessor)
 	case "virtualbox":
 		return new(VBoxBoxPostProcessor)
-	case "vmware":
-		return new(VMwareBoxPostProcessor)
+	//case "aws":
+	//	return new(AWSBoxPostProcessor)
+	//case "vmware":
+	//	return new(VMwareBoxPostProcessor)
 	default:
 		return nil
 	}
