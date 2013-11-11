@@ -8,6 +8,11 @@ import (
 	"path/filepath"
 )
 
+// Keeping this to leave opportunity for VMWare and AWS Post-Processors
+var builtins = map[string]string{
+	"dregin.virtualbox": "virtualbox",
+}
+
 type Config struct {
 	// Username for SCP operation.
 	// SSH keys should be used for authentication.
@@ -21,7 +26,8 @@ type Config struct {
 }
 
 type PostProcessor struct {
-	config Config
+	config  Config
+	premade map[string]packer.PostProcessor
 }
 
 func (p *PostProcessor) Configure(raws ...interface{}) error {
@@ -34,11 +40,12 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 // Send the OVF file (The artifact) to the virtual box host.
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
-	ppName, ok := "virtualbox"
+	ppName, ok := builtins[artifact.BuilderId()]
 	if !ok {
 		return nil, false, fmt.Errorf("Unknown artifact type, can't build box: %s", artifact.BuilderId())
 	}
