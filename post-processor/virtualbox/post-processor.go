@@ -15,27 +15,28 @@ var builtins = map[string]string{
 }
 
 type Config struct {
+	common.PackerConfig `mapstructure:",squash"`
 	// Username for SCP operation.
 	// SSH keys should be used for authentication.
-	scpUserName string `mapstructure:"scp_user_name"`
+	ScpUserName string `mapstructure:"scp_user_name"`
 
 	// Path to private SSH Key
-	scpKeyPath string  `mapstructure:"scp_key_path"`
+	ScpKeyPath string  `mapstructure:"scp_key_path"`
 
 	// Path to which the exported VirtualBox image will be transferred.
-	remoteImagePath string `mapstructure:"remote_image_path"`
+	RemoteImagePath string `mapstructure:"remote_image_path"`
 
 	// The VirtualBox Host
-	virtualBoxHost string `mapstructure:"virtual_box_host"`
+	VirtualBoxHost string `mapstructure:"virtual_box_host"`
 
 	// The Address of PHP Virtualbox
-	phpVirtualBoxAddress string `mapstructure:"php_virtualbox_address"`
+	PhpVirtualBoxAddress string `mapstructure:"php_virtualbox_address"`
 
 	// The Admin User for PHP Virtualbox
-	phpVirtualBoxUser string `mapstructure:"php_virtualbox_user"`
+	PhpVirtualBoxUser string `mapstructure:"php_virtualbox_user"`
 
 	// The Admin Password for PHP Virtualbox
-	phpVirtualBoxPass string `mapstructure:"php_virtualbox_pass"`
+	PhpVirtualBoxPass string `mapstructure:"php_virtualbox_pass"`
 }
 
 type PostProcessor struct {
@@ -57,13 +58,13 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 	}
 
 	validates := map[string]*string{
-		"scp_user_name":	&p.config.scpUserName,
-		"scp_key_path": &p.config.scpKeyPath,
-		"remote_image_path": &p.config.remoteImagePath,
-		"virtual_box_host": &p.config.virtualBoxHost,
-		"php_virtualbox_address": &p.config.phpVirtualBoxAddress,
-		"php_virtualbox_user": &p.config.phpVirtualBoxUser,
-		"php_virtualbox_pass": &p.config.phpVirtualBoxPass,
+		"scp_user_name":	&p.config.ScpUserName,
+		"scp_key_path": &p.config.ScpKeyPath,
+		"remote_image_path": &p.config.RemoteImagePath,
+		"virtual_box_host": &p.config.VirtualBoxHost,
+		"php_virtualbox_address": &p.config.PhpVirtualBoxAddress,
+		"php_virtualbox_user": &p.config.PhpVirtualBoxUser,
+		"php_virtualbox_pass": &p.config.PhpVirtualBoxPass,
 	}
 
 	for n := range validates {
@@ -91,10 +92,10 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	// Each Image comprises of a .ovf and a .vmdk file
 	for _, fileName := range artifact.Files(){
 		if strings.HasSuffix(fileName, ".ovf"){
-			//remoteImagePath = p.config.remoteImagePath + fileName
+			//remoteImagePath = p.config.RemoteImagePath + fileName
 		}
 		ui.Message(fmt.Sprintf("The Virtualbox Post-Processor is uploading %s to the Virtualbox Host", fileName))
-		cmd := exec.Command("scp", "-i", p.config.scpKeyPath, fileName, p.config.scpUserName + "@" + p.config.virtualBoxHost + ":" + p.config.remoteImagePath)
+		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, fileName, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + p.config.RemoteImagePath)
 
 		var out bytes.Buffer
 		cmd.Stdout = &out
@@ -106,10 +107,10 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	}
 
 	// Fire off HTTP request to PHPVirtualBox
-	//importImageViaWebService(remoteImagePath, p.config.phpVirtualBoxAddress, p.config.phpVirtualBoxUser, p.config.phpVirtualBoxPass)
+	//importImageViaWebService(remoteImagePath, p.config.PhpVirtualBoxAddress, p.config.PhpVirtualBoxUser, p.config.PhpVirtualBoxPass)
 
 	// Run command line import over SSH
-	importImageViaCommandLine(p.config.scpKeyPath, p.config.scpUserName, p.config.virtualBoxHost, p.config.remoteImagePath)
+	importImageViaCommandLine(p.config.ScpKeyPath, p.config.ScpUserName, p.config.VirtualBoxHost, p.config.RemoteImagePath)
 
 	return artifact, false, nil
 }
