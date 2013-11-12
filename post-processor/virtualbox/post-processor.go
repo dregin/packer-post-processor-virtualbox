@@ -93,7 +93,7 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	// Each Image comprises of a .ovf and a .vmdk file
 	for _, fileName := range artifact.Files(){
 		if strings.HasSuffix(fileName, ".ovf"){
-			remoteImagePath = p.config.RemoteImagePath + fileName
+			remoteImagePath = p.config.RemoteImageDir + fileName
 		}
 		ui.Message(fmt.Sprintf("The Virtualbox Post-Processor is uploading %s to the Virtualbox Host", fileName))
 		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, fileName, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + p.config.RemoteImageDir)
