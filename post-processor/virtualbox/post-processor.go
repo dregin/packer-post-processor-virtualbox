@@ -1,16 +1,17 @@
 package virtualbox
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/packer"
-	"os"
-	"path/filepath"
+	"os/exec"
+	"strings"
 )
 
 // Keeping this to leave opportunity for VMWare and AWS Post-Processors
 var builtins = map[string]string{
-	"dregin.virtualbox": "virtualbox",
+	"mitchellh.virtualbox": "virtualbox",
 }
 
 type Config struct {
@@ -18,16 +19,27 @@ type Config struct {
 	// SSH keys should be used for authentication.
 	scpUserName string `mapstructure:"scp_user_name"`
 
+	// Path to private SSH Key
+	scpKeyPath string  `mapstructure:"scp_key_path"`
+
 	// Path to which the exported VirtualBox image will be transferred.
-	remoteOVFPath string `mapstructure:"remote_ovf_path"`
+	remoteImagePath string `mapstructure:"remote_image_path"`
 
 	// The VirtualBox Host
 	virtualBoxHost string `mapstructure:"virtual_box_host"`
+
+	// The Address of PHP Virtualbox
+	phpVirtualBoxAddress string `mapstructure:"php_virtualbox_address"`
+
+	// The Admin User for PHP Virtualbox
+	phpVirtualBoxUser string `mapstructure:"php_virtualbox_user"`
+
+	// The Admin Password for PHP Virtualbox
+	phpVirtualBoxPass string `mapstructure:"php_virtualbox_pass"`
 }
 
 type PostProcessor struct {
 	config  Config
-	premade map[string]packer.PostProcessor
 }
 
 func (p *PostProcessor) Configure(raws ...interface{}) error {
@@ -36,50 +48,68 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 		return err
 	}
 
-	tpl, err := packer.NewConfigTemplate()
-	if err != nil {
-		return err
+	errors := new (packer.MultiError)
+
+	_, err1 := exec.LookPath("scp")
+	if err1 != nil{
+		errors = packer.MultiErrorAppend(
+			errors, fmt.Errorf("This tool depends on scp.", err1))
+	}
+
+	validates := map[string]*string{
+		"scp_user_name":	&p.config.scpUserName,
+		"scp_key_path": &p.config.scpKeyPath,
+		"remote_image_path": &p.config.remoteImagePath,
+		"virtual_box_host": &p.config.virtualBoxHost,
+		"php_virtualbox_address": &p.config.phpVirtualBoxAddress,
+		"php_virtualbox_user": &p.config.phpVirtualBoxUser,
+		"php_virtualbox_pass": &p.config.phpVirtualBoxPass,
+	}
+
+	for n := range validates {
+		if *validates[n] == "" {
+			errors = packer.MultiErrorAppend(
+			errors, fmt.Errorf("Argument not set: %s", n))
+		}
+	}
+
+	if len(errors.Errors) > 0 {
+		return errors
 	}
 	return nil
 }
 
-// Send the OVF file (The artifact) to the virtual box host.
+// Send the Virtual Box Image to the host.
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
-	ppName, ok := builtins[artifact.BuilderId()]
+	//remoteImagePath := ""
+	_, ok := builtins[artifact.BuilderId()]
+
 	if !ok {
 		return nil, false, fmt.Errorf("Unknown artifact type, can't build box: %s", artifact.BuilderId())
 	}
 
-	// Use the premade PostProcessor if we have one. Otherwise, we
-	// create it and configure it here.
-	pp, ok := p.premade[ppName]
-	return pp.PostProcess(ui, artifact)
-}
+	// Each Image comprises of a .ovf and a .vmdk file
+	for _, fileName := range artifact.Files(){
+		if strings.HasSuffix(fileName, ".ovf"){
+			//remoteImagePath = p.config.remoteImagePath + fileName
+		}
+		ui.Message(fmt.Sprintf("The Virtualbox Post-Processor is uploading %s to the Virtualbox Host", fileName))
+		cmd := exec.Command("scp", "-i", p.config.scpKeyPath, fileName, p.config.scpUserName + "@" + p.config.virtualBoxHost + ":" + p.config.remoteImagePath)
 
-func (p *PostProcessor) subPostProcessor(key string, specific interface{}, extra map[string]interface{}) (packer.PostProcessor, error) {
-	pp := keyToPostProcessor(key)
-	if pp == nil {
-		return nil, nil
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err_run := cmd.Run()
+		if err_run != nil {
+			return nil, false, fmt.Errorf("%s", out.String())
+		}
+		ui.Message(fmt.Sprintf("%s", out.String()))
 	}
 
-	if err := pp.Configure(extra, specific); err != nil {
-		return nil, err
-	}
+	// Fire off HTTP request to PHPVirtualBox
+	//importImageViaWebService(remoteImagePath, p.config.phpVirtualBoxAddress, p.config.phpVirtualBoxUser, p.config.phpVirtualBoxPass)
 
-	return pp, nil
-}
+	// Run command line import over SSH
+	importImageViaCommandLine(p.config.scpKeyPath, p.config.scpUserName, p.config.virtualBoxHost, p.config.remoteImagePath)
 
-// keyToPostProcessor maps a configuration key to the actual post-processor
-// it will be configuring. This returns a new instance of that post-processor.
-func keyToPostProcessor(key string) packer.PostProcessor {
-	switch key {
-	case "virtualbox":
-		return new(VBoxBoxPostProcessor)
-	//case "aws":
-	//	return new(AWSBoxPostProcessor)
-	//case "vmware":
-	//	return new(VMwareBoxPostProcessor)
-	default:
-		return nil
-	}
+	return artifact, false, nil
 }
