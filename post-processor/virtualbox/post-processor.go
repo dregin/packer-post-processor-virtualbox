@@ -1,12 +1,13 @@
 package virtualbox
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/packer"
 	"os/exec"
 	"strings"
+	"io"
+	"os"
 )
 
 // Keeping this to leave opportunity for VMWare and AWS Post-Processors
@@ -24,7 +25,7 @@ type Config struct {
 	ScpKeyPath string  `mapstructure:"scp_key_path"`
 
 	// Path to which the exported VirtualBox image will be transferred.
-	RemoteImagePath string `mapstructure:"remote_image_path"`
+	RemoteImageDir string `mapstructure:"remote_image_dir"`
 
 	// The VirtualBox Host
 	VirtualBoxHost string `mapstructure:"virtual_box_host"`
@@ -60,7 +61,7 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 	validates := map[string]*string{
 		"scp_user_name":	&p.config.ScpUserName,
 		"scp_key_path": &p.config.ScpKeyPath,
-		"remote_image_path": &p.config.RemoteImagePath,
+		"remote_image_dir": &p.config.RemoteImageDir,
 		"virtual_box_host": &p.config.VirtualBoxHost,
 		"php_virtualbox_address": &p.config.PhpVirtualBoxAddress,
 		"php_virtualbox_user": &p.config.PhpVirtualBoxUser,
@@ -82,7 +83,7 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 
 // Send the Virtual Box Image to the host.
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
-	//remoteImagePath := ""
+	remoteImagePath := ""
 	_, ok := builtins[artifact.BuilderId()]
 
 	if !ok {
@@ -92,25 +93,33 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	// Each Image comprises of a .ovf and a .vmdk file
 	for _, fileName := range artifact.Files(){
 		if strings.HasSuffix(fileName, ".ovf"){
-			//remoteImagePath = p.config.RemoteImagePath + fileName
+			remoteImagePath = p.config.RemoteImagePath + fileName
 		}
 		ui.Message(fmt.Sprintf("The Virtualbox Post-Processor is uploading %s to the Virtualbox Host", fileName))
-		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, fileName, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + p.config.RemoteImagePath)
+		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, fileName, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + p.config.RemoteImageDir)
 
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		err_run := cmd.Run()
-		if err_run != nil {
-			return nil, false, fmt.Errorf("%s", out.String())
-		}
-		ui.Message(fmt.Sprintf("%s", out.String()))
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+	            fmt.Println(err)
+	    }
+	    stderr, err := cmd.StderrPipe()
+	    if err != nil {
+	        fmt.Println(err)
+	    }
+	    err = cmd.Start()
+	    if err != nil {
+	        fmt.Println(err)
+	    }
+	    go io.Copy(os.Stdout, stdout) 
+	    go io.Copy(os.Stderr, stderr) 
+	    cmd.Wait()
 	}
 
 	// Fire off HTTP request to PHPVirtualBox
 	//importImageViaWebService(remoteImagePath, p.config.PhpVirtualBoxAddress, p.config.PhpVirtualBoxUser, p.config.PhpVirtualBoxPass)
 
 	// Run command line import over SSH
-	importImageViaCommandLine(p.config.ScpKeyPath, p.config.ScpUserName, p.config.VirtualBoxHost, p.config.RemoteImagePath)
+	importImageViaCommandLine(p.config.ScpKeyPath, p.config.ScpUserName, p.config.VirtualBoxHost, remoteImagePath)
 
 	return artifact, false, nil
 }
