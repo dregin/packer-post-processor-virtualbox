@@ -3,7 +3,7 @@ packer-post-processor-virtualbox
 
 Deploy packer artifacts to remote virtualbox host
 
-Borrows heavily from the core Vagrant Post-Processor @ https://github.com/mitchellh/packer/tree/master/post-processor/vagrant
+Borrows heavily from mheidenr's work on a VMWare post-processor @ https://github.com/mheidenr/packer-post-processor-ovftool
 
 Build
 -----
