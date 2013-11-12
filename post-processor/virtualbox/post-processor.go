@@ -119,7 +119,7 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	//importImageViaWebService(remoteImagePath, p.config.PhpVirtualBoxAddress, p.config.PhpVirtualBoxUser, p.config.PhpVirtualBoxPass)
 
 	// Run command line import over SSH
-	importImageViaCommandLine(p.config.ScpKeyPath, p.config.ScpUserName, p.config.VirtualBoxHost, remoteImagePath)
+	importImageViaCommandLine(p.config.ScpKeyPath, p.config.ScpUserName, p.config.VirtualBoxHost, remoteImagePath, ui)
 
 	return artifact, false, nil
 }
