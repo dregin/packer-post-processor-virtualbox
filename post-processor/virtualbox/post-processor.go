@@ -5,6 +5,7 @@ import (
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/packer"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"io"
 	"os"
@@ -91,12 +92,18 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	}
 
 	// Each Image comprises of a .ovf and a .vmdk file
-	for _, fileName := range artifact.Files(){
+	for _, filePath := range artifact.Files(){
+		remoteImagePath := ""
+		_, fileName := filepath.Split(filePath)
 		if strings.HasSuffix(fileName, ".ovf"){
 			remoteImagePath = p.config.RemoteImageDir + fileName
 		}
+		ui.Message(fmt.Sprintf("remoteImagePath: %s", remoteImagePath))
+		ui.Message(fmt.Sprintf("filePath: %s", filePath))
+		ui.Message(fmt.Sprintf("fileName: %s", fileName))
+		remoteFilePath := p.config.RemoteImageDir + fileName
 		ui.Message(fmt.Sprintf("The Virtualbox Post-Processor is uploading %s to the Virtualbox Host", fileName))
-		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, fileName, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + p.config.RemoteImageDir)
+		cmd := exec.Command("scp", "-i", p.config.ScpKeyPath, filePath, p.config.ScpUserName + "@" + p.config.VirtualBoxHost + ":" + remoteFilePath)
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
